@@ -45,11 +45,13 @@ public partial class MainWindow : Window
         CarregarLista();
         CarregarEstatistica();
 
+        // Reforça a posição no fundo do Z-order periodicamente: nenhuma outra janela
+        // deveria conseguir "roubar" o fundo da pilha permanentemente, mas isso garante.
         _watchdogAncoragem = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _watchdogAncoragem.Tick += (_, _) =>
         {
-            if (!ShowInTaskbar && !DesktopPinner.ParentAindaValido())
-                AncorarNoDesktop();
+            if (!ShowInTaskbar && DesktopPinner.JanelaValida(Hwnd))
+                DesktopPinner.ReforcarFundo(Hwnd);
         };
         _watchdogAncoragem.Start();
     }
@@ -287,16 +289,29 @@ public partial class MainWindow : Window
 
     private void BtnConfig_Click(object sender, RoutedEventArgs e)
     {
-        ChkIniciarComWindows.IsChecked = ((App)Application.Current).Settings.IniciarComWindows;
+        AtualizarVisualToggle(((App)Application.Current).Settings.IniciarComWindows);
         PopupTemas.IsOpen = true;
     }
 
-    private void ChkIniciarComWindows_Changed(object sender, RoutedEventArgs e)
+    private void AtualizarVisualToggle(bool ligado)
+    {
+        BolinhaToggle.HorizontalAlignment = ligado ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+        BolinhaToggle.Margin = ligado ? new Thickness(0, 0, 1, 0) : new Thickness(1, 0, 0, 0);
+        TrilhoToggle.Background = ligado ? (System.Windows.Media.Brush)FindResource("AccentBrush") : System.Windows.Media.Brushes.Transparent;
+        BolinhaToggle.Background = ligado
+            ? (System.Windows.Media.Brush)FindResource("WindowBackgroundBrush")
+            : (System.Windows.Media.Brush)FindResource("MutedForegroundBrush");
+    }
+
+    private void ToggleIniciar_Click(object sender, MouseButtonEventArgs e)
     {
         var app = (App)Application.Current;
-        app.Settings.IniciarComWindows = ChkIniciarComWindows.IsChecked == true;
+        var ligado = !app.Settings.IniciarComWindows;
+
+        app.Settings.IniciarComWindows = ligado;
         app.Storage.SalvarSettings(app.Settings);
-        Services.StartupService.Sincronizar(app.Settings.IniciarComWindows);
+        Services.StartupService.Sincronizar(ligado);
+        AtualizarVisualToggle(ligado);
     }
 
     private void TemaEscuro_Click(object sender, RoutedEventArgs e) => AplicarTema(Tema.Escuro);

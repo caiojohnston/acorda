@@ -1,14 +1,106 @@
 <Window x:Class="Acorda.EscolherDataWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Escolher data" Height="260" Width="230"
-        WindowStyle="None" ResizeMode="NoResize"
-        WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource WindowBackgroundBrush}">
-    <Border BorderBrush="{DynamicResource MutedForegroundBrush}" BorderThickness="1" CornerRadius="8" Padding="8">
-        <StackPanel>
-            <Calendar x:Name="CalendarioPicker" SelectionMode="SingleDate"/>
-            <Button Content="Confirmar" Margin="0,8,0,0" Height="28" Click="Confirmar_Click"/>
-        </StackPanel>
+        xmlns:vm="clr-namespace:Acorda.ViewModels"
+        Title="Escolher data" Height="300" Width="240"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+
+    <Border CornerRadius="14" Background="{DynamicResource WindowBackgroundBrush}"
+            BorderBrush="{DynamicResource MutedForegroundBrush}" BorderThickness="1" ClipToBounds="True">
+        <Grid Margin="14,12,14,14">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Navegação de mês -->
+            <Grid Grid.Row="0" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="&#x2039;" Width="24" Height="24" FontSize="14" Background="Transparent"
+                        BorderThickness="0" Foreground="{DynamicResource MutedForegroundBrush}" Cursor="Hand"
+                        Click="MesAnterior_Click"/>
+                <TextBlock Grid.Column="1" x:Name="TxtMesAno" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           FontSize="{DynamicResource FontSizeNormal}" FontFamily="Segoe UI" Foreground="{DynamicResource ForegroundBrush}"/>
+                <Button Grid.Column="2" Content="&#x203A;" Width="24" Height="24" FontSize="14" Background="Transparent"
+                        BorderThickness="0" Foreground="{DynamicResource MutedForegroundBrush}" Cursor="Hand"
+                        Click="ProximoMes_Click"/>
+            </Grid>
+
+            <!-- Iniciais dos dias da semana -->
+            <UniformGrid Grid.Row="1" Columns="7" Margin="0,0,0,4">
+                <TextBlock Text="D" HorizontalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Foreground="{DynamicResource MutedForegroundBrush}"/>
+                <TextBlock Text="S" HorizontalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Foreground="{DynamicResource MutedForegroundBrush}"/>
+                <TextBlock Text="T" HorizontalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Foreground="{DynamicResource MutedForegroundBrush}"/>
+                <TextBlock Text="Q" HorizontalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Foreground="{DynamicResource MutedForegroundBrush}"/>
+                <TextBlock Text="Q" HorizontalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Foreground="{DynamicResource MutedForegroundBrush}"/>
+                <TextBlock Text="S" HorizontalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Foreground="{DynamicResource MutedForegroundBrush}"/>
+                <TextBlock Text="S" HorizontalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}" Foreground="{DynamicResource MutedForegroundBrush}"/>
+            </UniformGrid>
+
+            <!-- Grade de dias -->
+            <ItemsControl Grid.Row="2" x:Name="GradeDias">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="7"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:CalendarioDiaVM}">
+                        <Border Width="28" Height="28" Margin="1" CornerRadius="14" Cursor="Hand"
+                                MouseLeftButtonUp="Dia_MouseLeftButtonUp">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding EhHoje}" Value="True">
+                                            <Setter Property="BorderThickness" Value="1"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Selecionado}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="{Binding NumeroDia}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       FontSize="{DynamicResource FontSizeSmall}" FontFamily="Segoe UI">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}"/>
+                                        <Setter Property="Opacity" Value="1"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding EhPassado}" Value="True">
+                                                <Setter Property="Opacity" Value="0.35"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ForaDoMes}" Value="True">
+                                                <Setter Property="Opacity" Value="0.25"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Selecionado}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource WindowBackgroundBrush}"/>
+                                                <Setter Property="Opacity" Value="1"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Button Grid.Row="3" Content="Confirmar" Margin="0,12,0,0" Height="30" Cursor="Hand"
+                    Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource WindowBackgroundBrush}"
+                    BorderThickness="0" FontFamily="Segoe UI" FontSize="{DynamicResource FontSizeSmall}"
+                    Click="Confirmar_Click"/>
+        </Grid>
     </Border>
 </Window>

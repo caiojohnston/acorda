@@ -3,9 +3,15 @@ using System.Runtime.InteropServices;
 
 namespace Acorda.Native;
 
-// Ancora uma janela atrás dos ícones do desktop (dentro do WorkerW criado pelo Explorer).
-// Truque clássico usado por wallpaper engines / gadgets: não é API oficial, pode falhar
-// em builds futuras do Windows — por isso sempre com fallback em SetWindowPos(HWND_BOTTOM).
+// Mantém a janela "colada" no desktop: escondida da barra de tarefas/alt-tab e
+// sempre no fundo da pilha Z, então só aparece quando o usuário minimiza tudo
+// (Mostrar Área de Trabalho). Deliberadamente NÃO usa SetParent pra dentro do
+// WorkerW do Explorer (truque clássico de wallpaper engine): isso tornaria a
+// janela filha de um HWND que o Explorer recria/destrói periodicamente, e o
+// Windows destrói janelas filhas junto com o pai — matando a janela de vez,
+// sem chance de recuperação nem pelo tray. SetWindowPos(HWND_BOTTOM) evita
+// esse risco por completo, ao custo de não ficar estritamente atrás dos
+// ícones (fica no fundo do Z-order geral, o que visualmente já basta aqui).
 public static class DesktopPinner
 {
     private const int GWL_EXSTYLE = -20;
@@ -21,21 +27,6 @@ public static class DesktopPinner
     private const uint SWP_SHOWWINDOW = 0x0040;
 
     [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr FindWindow(string lpClassName, string? lpWindowName);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string lpszClass, string? lpszWindow);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam, uint fuFlags, uint uTimeout, out IntPtr lpdwResult);
-
-    [DllImport("user32.dll")]
-    private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
-
-    [DllImport("user32.dll", SetLastError = true)]
     private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
 
     [DllImport("user32.dll", SetLastError = true)]
@@ -47,65 +38,32 @@ public static class DesktopPinner
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool IsWindow(IntPtr hWnd);
 
-    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-
-    private static IntPtr _workerW = IntPtr.Zero;
-
-    private static IntPtr LocalizarWorkerW()
+    // Ancora a janela no fundo do Z-order e some da taskbar/alt-tab.
+    public static void Ancorar(IntPtr hwnd)
     {
-        IntPtr progman = FindWindow("Progman", null!);
-        SendMessageTimeout(progman, 0x052C, IntPtr.Zero, IntPtr.Zero, 0, 1000, out _);
-
-        IntPtr workerw = IntPtr.Zero;
-        EnumWindows((hwnd, _) =>
-        {
-            IntPtr defView = FindWindowEx(hwnd, IntPtr.Zero, "SHELLDLL_DefView", null!);
-            if (defView != IntPtr.Zero)
-            {
-                workerw = FindWindowEx(IntPtr.Zero, hwnd, "WorkerW", null!);
-            }
-            return true;
-        }, IntPtr.Zero);
-
-        return workerw;
-    }
-
-    // Tenta anexar a janela atrás dos ícones do desktop. Retorna true se conseguiu via WorkerW.
-    public static bool Ancorar(IntPtr hwnd)
-    {
-        // esconde da barra de tarefas / alt-tab
         int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
         SetWindowLong(hwnd, GWL_EXSTYLE, (exStyle | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW);
-
-        _workerW = LocalizarWorkerW();
-        if (_workerW != IntPtr.Zero)
-        {
-            SetParent(hwnd, _workerW);
-            return true;
-        }
-
-        // fallback: mantém como janela normal, mas manda pro fundo da pilha Z
         SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE);
-        return false;
     }
 
-    // Desanexa do WorkerW e devolve a janela pro desktop normal (usado ao "abrir" o app).
+    // Reforça a posição no fundo do Z-order sem mexer no estilo (usado pelo watchdog:
+    // outra janela pode ter roubado o fundo da pilha nesse meio tempo).
+    public static void ReforcarFundo(IntPtr hwnd)
+    {
+        SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE);
+    }
+
+    // Devolve a janela pro desktop normal (usado ao "abrir" o app).
     public static void Desancorar(IntPtr hwnd)
     {
-        SetParent(hwnd, IntPtr.Zero);
-
         int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
         SetWindowLong(hwnd, GWL_EXSTYLE, (exStyle | WS_EX_APPWINDOW) & ~WS_EX_TOOLWINDOW);
 
-        // SetParent(NULL) sozinho não garante que o Windows reintegre a janela no Z-order
-        // normal de top-level — sem isso ela pode ficar "presa" atrás do WorkerW mesmo com
-        // taskbar/tray já reconhecendo ela como aberta. SWP_FRAMECHANGED força reavaliação.
+        // Depois de trocar o ex-style é preciso forçar o SO a reavaliar frame/Z-order,
+        // senão a janela pode ficar "presa" visualmente mesmo com taskbar/tray já
+        // reconhecendo ela como aberta.
         SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
     }
 
-    // Verifica se o Explorer reiniciou e o parent antigo não existe mais.
-    public static bool ParentAindaValido()
-    {
-        return _workerW != IntPtr.Zero && IsWindow(_workerW);
-    }
+    public static bool JanelaValida(IntPtr hwnd) => hwnd != IntPtr.Zero && IsWindow(hwnd);
 }

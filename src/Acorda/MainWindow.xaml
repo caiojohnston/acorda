@@ -9,6 +9,58 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolParaVisibilidade"/>
+
+        <!-- Botões de item do popup de config: sem o retângulo azul padrão do Windows no hover -->
+        <Style x:Key="ItemPopupStyle" TargetType="Button">
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Fundo" Background="{TemplateBinding Background}" CornerRadius="4">
+                            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Fundo" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Botões P/M/G: mesma ideia, com borda fixa -->
+        <Style x:Key="TamanhoPopupStyle" TargetType="Button">
+            <Setter Property="Width" Value="26"/>
+            <Setter Property="Padding" Value="0,3"/>
+            <Setter Property="Margin" Value="0,0,2,0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource MutedForegroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Fundo" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Fundo" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border CornerRadius="14" Background="{DynamicResource WindowBackgroundBrush}" ClipToBounds="True"
@@ -38,36 +90,37 @@
             </Grid>
 
             <!-- Popup de temas -->
-            <Popup x:Name="PopupTemas" PlacementTarget="{Binding ElementName=BtnConfig}" Placement="Bottom" StaysOpen="False">
+            <Popup x:Name="PopupTemas" PlacementTarget="{Binding ElementName=BtnConfig}" Placement="Bottom"
+                   StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
                 <Border Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource MutedForegroundBrush}"
-                        BorderThickness="1" CornerRadius="6" Padding="6">
+                        BorderThickness="1" CornerRadius="10" Padding="8" ClipToBounds="True" Margin="4">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.3" Color="Black"/>
+                    </Border.Effect>
                     <StackPanel>
-                        <Button Content="Escuro" Margin="2" Padding="6,3" Background="Transparent" BorderThickness="0"
-                                Foreground="{DynamicResource ForegroundBrush}" HorizontalContentAlignment="Left"
-                                Click="TemaEscuro_Click" Cursor="Hand"/>
-                        <Button Content="Claro" Margin="2" Padding="6,3" Background="Transparent" BorderThickness="0"
-                                Foreground="{DynamicResource ForegroundBrush}" HorizontalContentAlignment="Left"
-                                Click="TemaClaro_Click" Cursor="Hand"/>
-                        <Button Content="Nostalgia" Margin="2" Padding="6,3" Background="Transparent" BorderThickness="0"
-                                Foreground="{DynamicResource ForegroundBrush}" HorizontalContentAlignment="Left"
-                                Click="TemaNostalgia_Click" Cursor="Hand"/>
+                        <Button Content="Escuro" Style="{StaticResource ItemPopupStyle}" Click="TemaEscuro_Click"/>
+                        <Button Content="Claro" Style="{StaticResource ItemPopupStyle}" Click="TemaClaro_Click"/>
+                        <Button Content="Nostalgia" Style="{StaticResource ItemPopupStyle}" Click="TemaNostalgia_Click"/>
                         <Separator Margin="2,4"/>
-                        <TextBlock Text="Tamanho" FontSize="10" Foreground="{DynamicResource MutedForegroundBrush}" Margin="4,0"/>
+                        <TextBlock Text="Tamanho" FontSize="{DynamicResource FontSizeSmall}" Foreground="{DynamicResource MutedForegroundBrush}" Margin="4,0"/>
                         <StackPanel Orientation="Horizontal" Margin="2,2">
-                            <Button Content="P" Width="26" Padding="0,3" Margin="0,0,2,0" Background="Transparent"
-                                    BorderThickness="1" BorderBrush="{DynamicResource MutedForegroundBrush}"
-                                    Foreground="{DynamicResource ForegroundBrush}" Click="TamanhoPequena_Click" Cursor="Hand"/>
-                            <Button Content="M" Width="26" Padding="0,3" Margin="0,0,2,0" Background="Transparent"
-                                    BorderThickness="1" BorderBrush="{DynamicResource MutedForegroundBrush}"
-                                    Foreground="{DynamicResource ForegroundBrush}" Click="TamanhoMedia_Click" Cursor="Hand"/>
-                            <Button Content="G" Width="26" Padding="0,3" Background="Transparent"
-                                    BorderThickness="1" BorderBrush="{DynamicResource MutedForegroundBrush}"
-                                    Foreground="{DynamicResource ForegroundBrush}" Click="TamanhoGrande_Click" Cursor="Hand"/>
+                            <Button Content="P" Style="{StaticResource TamanhoPopupStyle}" Click="TamanhoPequena_Click"/>
+                            <Button Content="M" Style="{StaticResource TamanhoPopupStyle}" Click="TamanhoMedia_Click"/>
+                            <Button Content="G" Style="{StaticResource TamanhoPopupStyle}" Click="TamanhoGrande_Click"/>
                         </StackPanel>
                         <Separator Margin="2,4"/>
-                        <CheckBox x:Name="ChkIniciarComWindows" Content="Iniciar com o Windows" Margin="4,2"
-                                  Foreground="{DynamicResource ForegroundBrush}" Cursor="Hand"
-                                  Checked="ChkIniciarComWindows_Changed" Unchecked="ChkIniciarComWindows_Changed"/>
+
+                        <!-- Toggle custom "Iniciar com o Windows" (checkbox nativo destoava do resto da UI) -->
+                        <StackPanel Orientation="Horizontal" Margin="4,4" Cursor="Hand" MouseLeftButtonUp="ToggleIniciar_Click">
+                            <Border x:Name="TrilhoToggle" Width="30" Height="16" CornerRadius="8" BorderThickness="1"
+                                    BorderBrush="{DynamicResource MutedForegroundBrush}" Background="Transparent">
+                                <Border x:Name="BolinhaToggle" Width="12" Height="12" CornerRadius="6"
+                                        Background="{DynamicResource MutedForegroundBrush}"
+                                        HorizontalAlignment="Left" Margin="1,0,0,0"/>
+                            </Border>
+                            <TextBlock Text="Iniciar com o Windows" Margin="8,0,0,0" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource ForegroundBrush}" FontSize="{DynamicResource FontSizeSmall}"/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
             </Popup>
