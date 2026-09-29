@@ -54,13 +54,41 @@ public partial class MainWindow : Window
                 DesktopPinner.ReforcarFundo(Hwnd);
         };
         _watchdogAncoragem.Start();
+
+        // Sem o truque de virar filha do WorkerW, esta janela voltou a ser uma janela
+        // de topo comum — e "Mostrar Área de Trabalho" minimiza TODAS as janelas de topo,
+        // a nossa incluída. Intercepta o pedido de minimizar (WM_SYSCOMMAND/SC_MINIMIZE)
+        // e ignora enquanto estiver pinada, senão ela some e nada a traz de volta.
+        HwndSource.FromHwnd(Hwnd)?.AddHook(InterceptarMensagens);
+    }
+
+    private const int WM_SYSCOMMAND = 0x0112;
+    private const int SC_MINIMIZE = 0xF020;
+
+    private IntPtr InterceptarMensagens(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_SYSCOMMAND && (wParam.ToInt32() & 0xFFF0) == SC_MINIMIZE && !ShowInTaskbar)
+        {
+            handled = true;
+        }
+        return IntPtr.Zero;
     }
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (PermitirFechamento) return;
         e.Cancel = true;
-        AnimarFechar(AncorarNoDesktop);
+        AnimarFechar(() =>
+        {
+            AncorarNoDesktop();
+            // Ao contrário de minimizar (que some até reabrir pela bandeja), pinada no
+            // desktop a janela deve ficar totalmente visível sempre que o Z-order permitir
+            // (ex: Mostrar Área de Trabalho) — sem isso ela fica com Opacity=0 pra sempre,
+            // a animação de fechar nunca desfaz a si mesma.
+            Opacity = 1;
+            EscalaJanela.ScaleX = 1;
+            EscalaJanela.ScaleY = 1;
+        });
     }
 
     private void MainWindow_StateChanged(object? sender, EventArgs e)
@@ -102,7 +130,19 @@ public partial class MainWindow : Window
         sb.Children.Add(CriarAnimacao(EscalaJanela, ScaleTransform.ScaleXProperty, 1, 0.92, duracao, easing));
         sb.Children.Add(CriarAnimacao(EscalaJanela, ScaleTransform.ScaleYProperty, 1, 0.92, duracao, easing));
 
-        sb.Completed += (_, _) => aoTerminar();
+        sb.Completed += (_, _) =>
+        {
+            // FillBehavior padrão (HoldEnd) mantém a propriedade "presa" no valor final
+            // mesmo depois do Completed — sem soltar o clock aqui, qualquer atribuição
+            // direta feita dentro de aoTerminar() (ex: reabrir a opacidade) é ignorada.
+            BeginAnimation(OpacityProperty, null);
+            EscalaJanela.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            EscalaJanela.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            Opacity = 0;
+            EscalaJanela.ScaleX = EscalaJanela.ScaleY = 0.92;
+
+            aoTerminar();
+        };
         sb.Begin();
     }
 
@@ -166,6 +206,53 @@ public partial class MainWindow : Window
 
     private static TarefaItemVM? ObterVM(object sender) =>
         (sender as FrameworkElement)?.DataContext as TarefaItemVM;
+
+    // ---- Arrastar-e-soltar pra reordenar ----
+
+    private Point _pontoInicioArrasto;
+    private TarefaItemVM? _itemArrastando;
+
+    private void ItemTarefa_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _pontoInicioArrasto = e.GetPosition(null);
+    }
+
+    private void ItemTarefa_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed) return;
+        if (sender is not FrameworkElement elemento || elemento.DataContext is not TarefaItemVM vm) return;
+
+        var posicaoAtual = e.GetPosition(null);
+        if (Math.Abs(posicaoAtual.X - _pontoInicioArrasto.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(posicaoAtual.Y - _pontoInicioArrasto.Y) < SystemParameters.MinimumVerticalDragDistance)
+            return;
+
+        _itemArrastando = vm;
+        var opacidadeOriginal = elemento.Opacity;
+        elemento.Opacity = 0.35;
+        DragDrop.DoDragDrop(elemento, vm, DragDropEffects.Move);
+        elemento.Opacity = opacidadeOriginal;
+        _itemArrastando = null;
+    }
+
+    private void ItemTarefa_Drop(object sender, DragEventArgs e)
+    {
+        if (_itemArrastando is null) return;
+        if (sender is not FrameworkElement elemento || elemento.DataContext is not TarefaItemVM alvo) return;
+        if (ReferenceEquals(alvo, _itemArrastando)) return;
+
+        var lista = ((System.Collections.Generic.IEnumerable<TarefaItemVM>)ListaTarefas.ItemsSource).ToList();
+        var indiceOrigem = lista.IndexOf(_itemArrastando);
+        var indiceDestino = lista.IndexOf(alvo);
+        if (indiceOrigem < 0 || indiceDestino < 0) return;
+
+        var movido = lista[indiceOrigem];
+        lista.RemoveAt(indiceOrigem);
+        lista.Insert(indiceDestino, movido);
+
+        ListaTarefas.ItemsSource = lista;
+        Tarefas.Reordenar(movido.Id, indiceDestino);
+    }
 
     private void Circulo_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {

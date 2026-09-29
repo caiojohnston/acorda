@@ -18,9 +18,11 @@ public class TarefaService
 
     private void Salvar() => _storage.SalvarDados(_dados);
 
+    private double ProximaOrdem() => _dados.Tarefas.Count == 0 ? 0 : _dados.Tarefas.Max(t => t.Ordem) + 1;
+
     public TodoItem AdicionarFixa(string texto)
     {
-        var tarefa = new TodoItem { Texto = texto, Tipo = TarefaTipo.Fixa };
+        var tarefa = new TodoItem { Texto = texto, Tipo = TarefaTipo.Fixa, Ordem = ProximaOrdem() };
         _dados.Tarefas.Add(tarefa);
         Salvar();
         return tarefa;
@@ -32,7 +34,8 @@ public class TarefaService
         {
             Texto = texto,
             Tipo = TarefaTipo.Agendada,
-            DataAgendada = dataAgendada.Date
+            DataAgendada = dataAgendada.Date,
+            Ordem = ProximaOrdem()
         };
         _dados.Tarefas.Add(tarefa);
         Salvar();
@@ -61,8 +64,31 @@ public class TarefaService
         return _dados.Tarefas
             .Where(t => t.Tipo == TarefaTipo.Fixa || (t.DataAgendada is not null && t.DataAgendada.Value.Date <= hoje))
             .OrderBy(t => t.Tipo == TarefaTipo.Agendada && t.Concluida)
-            .ThenBy(t => t.DataCriacao)
+            .ThenBy(t => t.Ordem)
             .ToList();
+    }
+
+    // Reordena por arrastar-e-soltar: só reposiciona a tarefa movida, calculando uma
+    // Ordem fracionária entre as vizinhas na lista visível (evita reindexar tudo).
+    public void Reordenar(Guid tarefaMovidaId, int novoIndiceNaListaVisivel)
+    {
+        var movida = _dados.Tarefas.FirstOrDefault(t => t.Id == tarefaMovidaId);
+        if (movida is null) return;
+
+        var restante = ListarVisiveisHoje().Where(t => t.Id != tarefaMovidaId).ToList();
+
+        double novaOrdem;
+        if (restante.Count == 0)
+            novaOrdem = 0;
+        else if (novoIndiceNaListaVisivel <= 0)
+            novaOrdem = restante[0].Ordem - 1;
+        else if (novoIndiceNaListaVisivel >= restante.Count)
+            novaOrdem = restante[^1].Ordem + 1;
+        else
+            novaOrdem = (restante[novoIndiceNaListaVisivel - 1].Ordem + restante[novoIndiceNaListaVisivel].Ordem) / 2;
+
+        movida.Ordem = novaOrdem;
+        Salvar();
     }
 
     public bool EstaConcluidaHoje(TodoItem tarefa)

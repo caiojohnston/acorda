@@ -130,7 +130,9 @@
                 <ItemsControl x:Name="ListaTarefas">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:TarefaItemVM}">
-                            <Border Padding="14,7" BorderBrush="{DynamicResource TaskLineBrush}" BorderThickness="0,0,0,1">
+                            <Border Padding="14,7" Background="Transparent" BorderBrush="{DynamicResource TaskLineBrush}" BorderThickness="0,0,0,1"
+                                    AllowDrop="True" PreviewMouseLeftButtonDown="ItemTarefa_PreviewMouseLeftButtonDown"
+                                    PreviewMouseMove="ItemTarefa_PreviewMouseMove" Drop="ItemTarefa_Drop">
                                 <Border.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="Adiar para amanhã" Click="AdiarAmanha_Click"
@@ -186,10 +188,26 @@
                              KeyDown="TxtNovaTarefa_KeyDown" TextChanged="TxtNovaTarefa_TextChanged"/>
                 </Grid>
 
-                <Button x:Name="BtnAgendar" Grid.Column="1" Visibility="Collapsed" Width="26" Height="26" Background="Transparent"
-                        BorderThickness="0" FontFamily="Segoe MDL2 Assets" FontSize="14" Cursor="Hand"
-                        Foreground="{DynamicResource MutedForegroundBrush}" Content="&#xE787;"
-                        Click="BtnAgendar_Click" ToolTip="Agendar para outro dia"/>
+                <Button x:Name="BtnAgendar" Grid.Column="1" Visibility="Collapsed" Width="26" Height="26"
+                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                        Click="BtnAgendar_Click" ToolTip="Agendar para outro dia">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                    <!-- Ícone de calendário desenhado na mão (evita depender de glifo de fonte do sistema,
+                         que às vezes não renderiza / cai num "tofu box" escuro fixo, ilegível no tema escuro) -->
+                    <Grid x:Name="IconeCalendario" Width="14" Height="13" SnapsToDevicePixels="True">
+                        <Border BorderBrush="{DynamicResource MutedForegroundBrush}" BorderThickness="1.3" CornerRadius="1.5"
+                                Margin="0,2,0,0"/>
+                        <Line X1="0" Y1="5" X2="14" Y2="5" Stroke="{DynamicResource MutedForegroundBrush}" StrokeThickness="1.3"/>
+                        <Line X1="3.5" Y1="0" X2="3.5" Y2="3" Stroke="{DynamicResource MutedForegroundBrush}" StrokeThickness="1.3"/>
+                        <Line X1="10.5" Y1="0" X2="10.5" Y2="3" Stroke="{DynamicResource MutedForegroundBrush}" StrokeThickness="1.3"/>
+                    </Grid>
+                </Button>
 
                 <Button x:Name="BtnAdicionar" Grid.Column="2" Content="+" Width="26" Height="26" Background="Transparent" BorderThickness="0"
                         Foreground="{DynamicResource ForegroundBrush}" FontSize="16" Cursor="Hand" Click="BtnAdicionar_Click"/>

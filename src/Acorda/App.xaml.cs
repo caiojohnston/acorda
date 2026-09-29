@@ -1,8 +1,8 @@
 using System;
-using System.IO.Pipes;
+using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Interop;
 using Acorda.Models;
 using Acorda.Services;
 using Hardcodet.Wpf.TaskbarNotification;
@@ -11,11 +11,19 @@ namespace Acorda;
 
 public partial class App : Application
 {
-    private const string NomePipeAtivacao = "Acorda_Ativar";
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern uint RegisterWindowMessage(string lpString);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr FindWindow(string? lpClassName, string? lpWindowName);
+
+    [DllImport("user32.dll")]
+    private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    private static readonly uint MsgAtivarAcorda = RegisterWindowMessage("Acorda_Ativar_Instancia_9F3D2A");
 
     private static Mutex? _mutexInstanciaUnica;
     private TaskbarIcon? _trayIcon;
-    private bool _encerrando;
 
     public StorageService Storage { get; private set; } = null!;
     public TarefaService Tarefas { get; private set; } = null!;
@@ -43,45 +51,38 @@ public partial class App : Application
         AplicarTema(Settings.Tema);
         AplicarTamanhoFonte(Settings.Tamanho);
         ConfigurarTrayIcon();
-        IniciarServidorAtivacao();
 
         var janela = new MainWindow();
         MainWindow = janela;
         janela.Show();
+
+        // Escuta a mensagem que uma segunda instância manda (ver SinalizarInstanciaExistente).
+        // PostMessage não precisa de handshake nem timeout: é só enfileirar e seguir, muito
+        // mais robusto que named pipe pra esse "acorda a instância que já existe".
+        var hwnd = new WindowInteropHelper(janela).EnsureHandle();
+        HwndSource.FromHwnd(hwnd)?.AddHook(InterceptarMensagens);
     }
 
-    // Escuta pedidos de ativação vindos de uma segunda instância (ver SinalizarInstanciaExistente).
-    private void IniciarServidorAtivacao()
+    private IntPtr InterceptarMensagens(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        Task.Run(async () =>
+        if (msg == MsgAtivarAcorda)
         {
-            while (!_encerrando)
-            {
-                try
-                {
-                    using var server = new NamedPipeServerStream(NomePipeAtivacao, PipeDirection.In);
-                    await server.WaitForConnectionAsync();
-                    Dispatcher.Invoke(AbrirJanelaPrincipal);
-                }
-                catch
-                {
-                    break;
-                }
-            }
-        });
+            AbrirJanelaPrincipal();
+            handled = true;
+        }
+        return IntPtr.Zero;
     }
 
     private static void SinalizarInstanciaExistente()
     {
-        try
+        var hwnd = FindWindow(null, "acorda");
+        if (hwnd != IntPtr.Zero)
         {
-            using var client = new NamedPipeClientStream(".", NomePipeAtivacao, PipeDirection.Out);
-            client.Connect(500);
-            client.WriteByte(1);
+            PostMessage(hwnd, MsgAtivarAcorda, IntPtr.Zero, IntPtr.Zero);
         }
-        catch
+        else
         {
-            // instância existente não respondeu a tempo — avisa do jeito antigo, como último recurso
+            // não deveria acontecer (mutex diz que existe uma instância), mas por segurança
             MessageBox.Show("Acorda já está em execução (veja a bandeja do Windows).", "Acorda",
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -154,7 +155,6 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _encerrando = true;
         _trayIcon?.Dispose();
         _mutexInstanciaUnica?.ReleaseMutex();
         base.OnExit(e);
