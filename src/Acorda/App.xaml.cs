@@ -1,5 +1,7 @@
 using System;
+using System.IO.Pipes;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using Acorda.Models;
 using Acorda.Services;
@@ -9,8 +11,11 @@ namespace Acorda;
 
 public partial class App : Application
 {
+    private const string NomePipeAtivacao = "Acorda_Ativar";
+
     private static Mutex? _mutexInstanciaUnica;
     private TaskbarIcon? _trayIcon;
+    private bool _encerrando;
 
     public StorageService Storage { get; private set; } = null!;
     public TarefaService Tarefas { get; private set; } = null!;
@@ -21,8 +26,9 @@ public partial class App : Application
         _mutexInstanciaUnica = new Mutex(true, "Acorda_App_SingleInstance", out bool criouNovo);
         if (!criouNovo)
         {
-            MessageBox.Show("Acorda já está em execução (veja a bandeja do Windows).", "Acorda",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            // Já tem uma instância rodando (provavelmente ancorada e invisível) — manda ela
+            // se abrir em vez de só mostrar um aviso que pode passar despercebido atrás de outra janela.
+            SinalizarInstanciaExistente();
             Shutdown();
             return;
         }
@@ -37,10 +43,48 @@ public partial class App : Application
         AplicarTema(Settings.Tema);
         AplicarTamanhoFonte(Settings.Tamanho);
         ConfigurarTrayIcon();
+        IniciarServidorAtivacao();
 
         var janela = new MainWindow();
         MainWindow = janela;
         janela.Show();
+    }
+
+    // Escuta pedidos de ativação vindos de uma segunda instância (ver SinalizarInstanciaExistente).
+    private void IniciarServidorAtivacao()
+    {
+        Task.Run(async () =>
+        {
+            while (!_encerrando)
+            {
+                try
+                {
+                    using var server = new NamedPipeServerStream(NomePipeAtivacao, PipeDirection.In);
+                    await server.WaitForConnectionAsync();
+                    Dispatcher.Invoke(AbrirJanelaPrincipal);
+                }
+                catch
+                {
+                    break;
+                }
+            }
+        });
+    }
+
+    private static void SinalizarInstanciaExistente()
+    {
+        try
+        {
+            using var client = new NamedPipeClientStream(".", NomePipeAtivacao, PipeDirection.Out);
+            client.Connect(500);
+            client.WriteByte(1);
+        }
+        catch
+        {
+            // instância existente não respondeu a tempo — avisa do jeito antigo, como último recurso
+            MessageBox.Show("Acorda já está em execução (veja a bandeja do Windows).", "Acorda",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 
     private void ConfigurarTrayIcon()
@@ -110,6 +154,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _encerrando = true;
         _trayIcon?.Dispose();
         _mutexInstanciaUnica?.ReleaseMutex();
         base.OnExit(e);

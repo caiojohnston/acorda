@@ -13,9 +13,12 @@ public static class DesktopPinner
     private const int WS_EX_APPWINDOW = 0x00040000;
 
     private static readonly IntPtr HWND_BOTTOM = new(1);
+    private static readonly IntPtr HWND_TOP = IntPtr.Zero;
     private const uint SWP_NOSIZE = 0x0001;
     private const uint SWP_NOMOVE = 0x0002;
     private const uint SWP_NOACTIVATE = 0x0010;
+    private const uint SWP_FRAMECHANGED = 0x0020;
+    private const uint SWP_SHOWWINDOW = 0x0040;
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr FindWindow(string lpClassName, string? lpWindowName);
@@ -93,6 +96,11 @@ public static class DesktopPinner
 
         int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
         SetWindowLong(hwnd, GWL_EXSTYLE, (exStyle | WS_EX_APPWINDOW) & ~WS_EX_TOOLWINDOW);
+
+        // SetParent(NULL) sozinho não garante que o Windows reintegre a janela no Z-order
+        // normal de top-level — sem isso ela pode ficar "presa" atrás do WorkerW mesmo com
+        // taskbar/tray já reconhecendo ela como aberta. SWP_FRAMECHANGED força reavaliação.
+        SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
     }
 
     // Verifica se o Explorer reiniciou e o parent antigo não existe mais.
