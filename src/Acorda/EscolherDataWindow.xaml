@@ -1,0 +1,14 @@
+<Window x:Class="Acorda.EscolherDataWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Escolher data" Height="260" Width="230"
+        WindowStyle="None" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource WindowBackgroundBrush}">
+    <Border BorderBrush="{DynamicResource MutedForegroundBrush}" BorderThickness="1" CornerRadius="8" Padding="8">
+        <StackPanel>
+            <Calendar x:Name="CalendarioPicker" SelectionMode="SingleDate"/>
+            <Button Content="Confirmar" Margin="0,8,0,0" Height="28" Click="Confirmar_Click"/>
+        </StackPanel>
+    </Border>
+</Window>
