@@ -46,7 +46,7 @@ public partial class App : Application
     {
         _trayIcon = new TaskbarIcon
         {
-            Icon = Acorda.Native.IconFactory.CriarIconePlaceholder(),
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath!),
             ToolTipText = "Acorda"
         };
 

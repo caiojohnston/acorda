@@ -28,9 +28,9 @@ public partial class MainWindow : Window
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        using (var icone = Native.IconFactory.CriarIconePlaceholder())
+        using (var icone = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath!))
         {
-            Icon = Imaging.CreateBitmapSourceFromHIcon(icone.Handle, Int32Rect.Empty,
+            Icon = Imaging.CreateBitmapSourceFromHIcon(icone!.Handle, Int32Rect.Empty,
                 BitmapSizeOptions.FromEmptyOptions());
         }
 

@@ -6,6 +6,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>Assets\acorda.ico</ApplicationIcon>
+    <AssemblyName>Acorda</AssemblyName>
+    <Product>Acorda</Product>
   </PropertyGroup>
 
   <ItemGroup>

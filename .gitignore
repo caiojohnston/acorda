@@ -185,6 +185,9 @@ DocProject/Help/html
 # Click-Once directory
 publish/
 
+# Instalador gerado (grande demais pro git; regenerar via installer/acorda.iss)
+dist/
+
 # Publish Web Output
 *.[Pp]ublish.xml
 *.azurePubxml
