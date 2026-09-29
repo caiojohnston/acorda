@@ -11,7 +11,11 @@
         <BooleanToVisibilityConverter x:Key="BoolParaVisibilidade"/>
     </Window.Resources>
 
-    <Border CornerRadius="14" Background="{DynamicResource WindowBackgroundBrush}" ClipToBounds="True">
+    <Border CornerRadius="14" Background="{DynamicResource WindowBackgroundBrush}" ClipToBounds="True"
+            RenderTransformOrigin="0.5,0.5">
+        <Border.RenderTransform>
+            <ScaleTransform x:Name="EscalaJanela" ScaleX="1" ScaleY="1"/>
+        </Border.RenderTransform>
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -23,7 +27,7 @@
             <!-- Barra de título -->
             <Grid Grid.Row="0" Height="34" Background="Transparent" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <TextBlock Text="acorda" Foreground="{DynamicResource ForegroundBrush}"
-                           FontSize="13" FontFamily="Segoe UI" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                           FontSize="{DynamicResource FontSizeNormal}" FontFamily="Segoe UI" VerticalAlignment="Center" Margin="14,0,0,0"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0">
                     <Button x:Name="BtnConfig" Content="&#x2699;" Width="26" Height="24" Background="Transparent"
                             BorderThickness="0" Foreground="{DynamicResource MutedForegroundBrush}" FontSize="12"
@@ -47,6 +51,19 @@
                         <Button Content="Nostalgia" Margin="2" Padding="6,3" Background="Transparent" BorderThickness="0"
                                 Foreground="{DynamicResource ForegroundBrush}" HorizontalContentAlignment="Left"
                                 Click="TemaNostalgia_Click" Cursor="Hand"/>
+                        <Separator Margin="2,4"/>
+                        <TextBlock Text="Tamanho" FontSize="10" Foreground="{DynamicResource MutedForegroundBrush}" Margin="4,0"/>
+                        <StackPanel Orientation="Horizontal" Margin="2,2">
+                            <Button Content="P" Width="26" Padding="0,3" Margin="0,0,2,0" Background="Transparent"
+                                    BorderThickness="1" BorderBrush="{DynamicResource MutedForegroundBrush}"
+                                    Foreground="{DynamicResource ForegroundBrush}" Click="TamanhoPequena_Click" Cursor="Hand"/>
+                            <Button Content="M" Width="26" Padding="0,3" Margin="0,0,2,0" Background="Transparent"
+                                    BorderThickness="1" BorderBrush="{DynamicResource MutedForegroundBrush}"
+                                    Foreground="{DynamicResource ForegroundBrush}" Click="TamanhoMedia_Click" Cursor="Hand"/>
+                            <Button Content="G" Width="26" Padding="0,3" Background="Transparent"
+                                    BorderThickness="1" BorderBrush="{DynamicResource MutedForegroundBrush}"
+                                    Foreground="{DynamicResource ForegroundBrush}" Click="TamanhoGrande_Click" Cursor="Hand"/>
+                        </StackPanel>
                         <Separator Margin="2,4"/>
                         <CheckBox x:Name="ChkIniciarComWindows" Content="Iniciar com o Windows" Margin="4,2"
                                   Foreground="{DynamicResource ForegroundBrush}" Cursor="Hand"
@@ -88,9 +105,9 @@
                                     </Border>
                                     <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Texto}" Foreground="{DynamicResource ForegroundBrush}"
-                                                   FontSize="13" FontFamily="Segoe UI" TextWrapping="Wrap" MaxWidth="160"/>
+                                                   FontSize="{DynamicResource FontSizeNormal}" FontFamily="Segoe UI" TextWrapping="Wrap" MaxWidth="160"/>
                                         <TextBlock Text="{Binding DataLabel}" Foreground="{DynamicResource MutedForegroundBrush}"
-                                                   FontSize="10" Visibility="{Binding EhAgendada, Converter={StaticResource BoolParaVisibilidade}}"/>
+                                                   FontSize="{DynamicResource FontSizeSmall}" Visibility="{Binding EhAgendada, Converter={StaticResource BoolParaVisibilidade}}"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -106,32 +123,45 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBox x:Name="TxtNovaTarefa" Grid.Column="0" Background="Transparent" BorderThickness="0"
-                         Foreground="{DynamicResource ForegroundBrush}" FontSize="13" VerticalContentAlignment="Center"
-                         KeyDown="TxtNovaTarefa_KeyDown"/>
-                <Button x:Name="BtnAgendar" Grid.Column="1" Content="&#x1F4C5;" Width="26" Height="26" Background="Transparent"
-                        BorderThickness="0" FontSize="12" Cursor="Hand" Click="BtnAgendar_Click" ToolTip="Agendar para outro dia"/>
-                <Button Grid.Column="2" Content="+" Width="26" Height="26" Background="Transparent" BorderThickness="0"
-                        Foreground="{DynamicResource ForegroundBrush}" FontSize="16" Cursor="Hand" Click="AdicionarTarefa_Click"/>
+
+                <Grid x:Name="PainelInput" Grid.Column="0" Visibility="Collapsed" VerticalAlignment="Center">
+                    <TextBlock x:Name="TxtPlaceholder" Text="nova tarefa..." Foreground="{DynamicResource MutedForegroundBrush}"
+                               FontSize="{DynamicResource FontSizeNormal}" FontFamily="Segoe UI" IsHitTestVisible="False" Margin="2,0,0,0"/>
+                    <TextBox x:Name="TxtNovaTarefa" Background="Transparent" BorderThickness="0"
+                             Foreground="{DynamicResource ForegroundBrush}" CaretBrush="{DynamicResource ForegroundBrush}"
+                             FontSize="{DynamicResource FontSizeNormal}" VerticalContentAlignment="Center"
+                             KeyDown="TxtNovaTarefa_KeyDown" TextChanged="TxtNovaTarefa_TextChanged"/>
+                </Grid>
+
+                <Button x:Name="BtnAgendar" Grid.Column="1" Visibility="Collapsed" Width="26" Height="26" Background="Transparent"
+                        BorderThickness="0" FontFamily="Segoe MDL2 Assets" FontSize="14" Cursor="Hand"
+                        Foreground="{DynamicResource MutedForegroundBrush}" Content="&#xE787;"
+                        Click="BtnAgendar_Click" ToolTip="Agendar para outro dia"/>
+
+                <Button x:Name="BtnAdicionar" Grid.Column="2" Content="+" Width="26" Height="26" Background="Transparent" BorderThickness="0"
+                        Foreground="{DynamicResource ForegroundBrush}" FontSize="16" Cursor="Hand" Click="BtnAdicionar_Click"/>
             </Grid>
 
             <!-- Estatística semanal -->
-            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10" Height="26">
-                <ItemsControl x:Name="ListaEstatistica">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="{x:Type vm:StatDiaVM}">
-                            <Border Width="8" Height="{Binding AlturaBarra}" Margin="2,0"
-                                    Background="{DynamicResource AccentBrush}" CornerRadius="2"
-                                    VerticalAlignment="Bottom" ToolTip="{Binding Tooltip}"/>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
+            <Border Grid.Row="3" Margin="0,0,0,10" Cursor="Hand" Background="Transparent"
+                    MouseLeftButtonUp="Estatistica_MouseLeftButtonUp" ToolTip="Ver semana">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Height="26">
+                    <ItemsControl x:Name="ListaEstatistica" IsHitTestVisible="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:StatDiaVM}">
+                                <Border Width="8" Height="{Binding AlturaBarra}" Margin="2,0"
+                                        Background="{DynamicResource AccentBrush}" CornerRadius="2"
+                                        VerticalAlignment="Bottom"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
         </Grid>
     </Border>
 </Window>

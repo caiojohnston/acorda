@@ -35,6 +35,7 @@ public partial class App : Application
         StartupService.Sincronizar(Settings.IniciarComWindows);
 
         AplicarTema(Settings.Tema);
+        AplicarTamanhoFonte(Settings.Tamanho);
         ConfigurarTrayIcon();
 
         var janela = new MainWindow();
@@ -92,6 +93,19 @@ public partial class App : Application
 
         Settings.Tema = tema;
         Storage.SalvarSettings(Settings);
+    }
+
+    public void AplicarTamanhoFonte(TamanhoJanela tamanho)
+    {
+        var (normal, pequena) = tamanho switch
+        {
+            TamanhoJanela.Media => (15d, 11d),
+            TamanhoJanela.Grande => (17d, 12d),
+            _ => (13d, 10d)
+        };
+
+        Resources["FontSizeNormal"] = normal;
+        Resources["FontSizeSmall"] = pequena;
     }
 
     protected override void OnExit(ExitEventArgs e)

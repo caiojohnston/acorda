@@ -1,0 +1,56 @@
+<Window x:Class="Acorda.DashboardSemanalWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Semana" Height="300" Width="280"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+    <Border CornerRadius="14" Background="{DynamicResource WindowBackgroundBrush}"
+            BorderBrush="{DynamicResource MutedForegroundBrush}" BorderThickness="1">
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0">
+                <TextBlock Text="essa semana" FontSize="{DynamicResource FontSizeNormal}" FontFamily="Segoe UI"
+                           Foreground="{DynamicResource ForegroundBrush}" VerticalAlignment="Center"/>
+                <Button Content="&#x2715;" Width="24" Height="24" HorizontalAlignment="Right" Background="Transparent"
+                        BorderThickness="0" FontSize="10" Foreground="{DynamicResource MutedForegroundBrush}"
+                        Cursor="Hand" Click="Fechar_Click"/>
+            </Grid>
+
+            <ItemsControl x:Name="ListaDias" Grid.Row="1" Margin="0,16,0,0">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Center"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="6,0" Width="24" VerticalAlignment="Bottom">
+                            <TextBlock Text="{Binding Quantidade}" HorizontalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}"
+                                       Foreground="{DynamicResource MutedForegroundBrush}" Margin="0,0,0,4"/>
+                            <Border Height="{Binding AlturaBarra}" Background="{DynamicResource AccentBrush}"
+                                    CornerRadius="3" VerticalAlignment="Bottom"/>
+                            <TextBlock Text="{Binding DiaAbrev}" HorizontalAlignment="Center" FontSize="{DynamicResource FontSizeSmall}"
+                                       Foreground="{DynamicResource MutedForegroundBrush}" Margin="0,6,0,0"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Separator Grid.Row="2" Margin="0,14,0,10" Opacity="0.3"/>
+
+            <StackPanel Grid.Row="3">
+                <TextBlock x:Name="TxtTotalSemana" FontSize="{DynamicResource FontSizeNormal}" FontFamily="Segoe UI"
+                           Foreground="{DynamicResource ForegroundBrush}"/>
+                <TextBlock x:Name="TxtMediaDia" FontSize="{DynamicResource FontSizeSmall}" FontFamily="Segoe UI" Margin="0,2,0,0"
+                           Foreground="{DynamicResource MutedForegroundBrush}"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

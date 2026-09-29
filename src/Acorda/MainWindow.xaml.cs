@@ -1,8 +1,11 @@
 using System;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Acorda.Models;
@@ -20,10 +23,13 @@ public partial class MainWindow : Window
     private DispatcherTimer? _watchdogAncoragem;
     public bool PermitirFechamento { get; set; }
 
+    private const int DuracaoAnimacaoMs = 180;
+
     public MainWindow()
     {
         InitializeComponent();
         Closing += MainWindow_Closing;
+        StateChanged += MainWindow_StateChanged;
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -34,6 +40,7 @@ public partial class MainWindow : Window
                 BitmapSizeOptions.FromEmptyOptions());
         }
 
+        AplicarTamanho(((App)Application.Current).Settings.Tamanho);
         AncorarNoDesktop();
         CarregarLista();
         CarregarEstatistica();
@@ -51,7 +58,13 @@ public partial class MainWindow : Window
     {
         if (PermitirFechamento) return;
         e.Cancel = true;
-        AncorarNoDesktop();
+        AnimarFechar(AncorarNoDesktop);
+    }
+
+    private void MainWindow_StateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState == WindowState.Normal && Opacity < 1)
+            AnimarAbrir();
     }
 
     private IntPtr Hwnd => new WindowInteropHelper(this).Handle;
@@ -72,6 +85,47 @@ public partial class MainWindow : Window
         Topmost = true;
         Topmost = false;
         Focus();
+        AnimarAbrir();
+    }
+
+    // Anima fade + encolhimento e só executa a mudança de estado real ao terminar
+    // (WPF não anima minimizar/restaurar nativamente em janelas AllowsTransparency=True).
+    private void AnimarFechar(Action aoTerminar)
+    {
+        var easing = new QuadraticEase { EasingMode = EasingMode.EaseIn };
+        var duracao = TimeSpan.FromMilliseconds(DuracaoAnimacaoMs);
+
+        var sb = new Storyboard();
+        sb.Children.Add(CriarAnimacao(this, OpacityProperty, 1, 0, duracao, easing));
+        sb.Children.Add(CriarAnimacao(EscalaJanela, ScaleTransform.ScaleXProperty, 1, 0.92, duracao, easing));
+        sb.Children.Add(CriarAnimacao(EscalaJanela, ScaleTransform.ScaleYProperty, 1, 0.92, duracao, easing));
+
+        sb.Completed += (_, _) => aoTerminar();
+        sb.Begin();
+    }
+
+    private void AnimarAbrir()
+    {
+        Opacity = 0;
+        EscalaJanela.ScaleX = EscalaJanela.ScaleY = 0.92;
+
+        var easing = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+        var duracao = TimeSpan.FromMilliseconds(DuracaoAnimacaoMs);
+
+        var sb = new Storyboard();
+        sb.Children.Add(CriarAnimacao(this, OpacityProperty, 0, 1, duracao, easing));
+        sb.Children.Add(CriarAnimacao(EscalaJanela, ScaleTransform.ScaleXProperty, 0.92, 1, duracao, easing));
+        sb.Children.Add(CriarAnimacao(EscalaJanela, ScaleTransform.ScaleYProperty, 0.92, 1, duracao, easing));
+        sb.Begin();
+    }
+
+    private static DoubleAnimation CriarAnimacao(DependencyObject alvo, DependencyProperty propriedade,
+        double de, double para, TimeSpan duracao, IEasingFunction easing)
+    {
+        var anim = new DoubleAnimation(de, para, duracao) { EasingFunction = easing };
+        Storyboard.SetTarget(anim, alvo);
+        Storyboard.SetTargetProperty(anim, new PropertyPath(propriedade));
+        return anim;
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -82,10 +136,10 @@ public partial class MainWindow : Window
     private void Minimizar_Click(object sender, RoutedEventArgs e)
     {
         if (ShowInTaskbar)
-            WindowState = WindowState.Minimized;
+            AnimarFechar(() => WindowState = WindowState.Minimized);
     }
 
-    private void Fechar_Click(object sender, RoutedEventArgs e) => AncorarNoDesktop();
+    private void Fechar_Click(object sender, RoutedEventArgs e) => Close();
 
     // ---- Lista de tarefas ----
 
@@ -104,8 +158,7 @@ public partial class MainWindow : Window
 
         ListaEstatistica.ItemsSource = stats.Select(kv => new StatDiaVM
         {
-            AlturaBarra = 4 + kv.Value / (double)max * 18,
-            Tooltip = $"{kv.Key:dd/MM}: {kv.Value} concluída(s)"
+            AlturaBarra = 4 + kv.Value / (double)max * 18
         }).ToList();
     }
 
@@ -156,6 +209,29 @@ public partial class MainWindow : Window
 
     // ---- Adicionar tarefa ----
 
+    private bool _painelInputAberto;
+
+    private void AbrirPainelInput()
+    {
+        _painelInputAberto = true;
+        PainelInput.Visibility = Visibility.Visible;
+        BtnAgendar.Visibility = Visibility.Visible;
+        BtnAdicionar.Content = "✓";
+        TxtNovaTarefa.Focus();
+    }
+
+    private void FecharPainelInput()
+    {
+        _painelInputAberto = false;
+        PainelInput.Visibility = Visibility.Collapsed;
+        BtnAgendar.Visibility = Visibility.Collapsed;
+        BtnAdicionar.Content = "+";
+        TxtNovaTarefa.Clear();
+        _dataAgendadaPendente = null;
+        BtnAgendar.ClearValue(System.Windows.Controls.Control.ForegroundProperty);
+        BtnAgendar.ToolTip = "Agendar para outro dia";
+    }
+
     private void BtnAgendar_Click(object sender, RoutedEventArgs e)
     {
         var dlg = new EscolherDataWindow { Owner = this };
@@ -167,33 +243,44 @@ public partial class MainWindow : Window
         }
     }
 
-    private void AdicionarTarefa_Click(object sender, RoutedEventArgs e) => AdicionarTarefa();
+    private void BtnAdicionar_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_painelInputAberto)
+        {
+            AbrirPainelInput();
+            return;
+        }
+
+        if (!TentarAdicionarTarefa())
+            FecharPainelInput();
+    }
+
+    private void TxtNovaTarefa_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        TxtPlaceholder.Visibility = string.IsNullOrEmpty(TxtNovaTarefa.Text) ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     private void TxtNovaTarefa_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter) AdicionarTarefa();
+        if (e.Key == Key.Enter) TentarAdicionarTarefa();
+        else if (e.Key == Key.Escape) FecharPainelInput();
     }
 
-    private void AdicionarTarefa()
+    // Retorna true se uma tarefa foi de fato adicionada.
+    private bool TentarAdicionarTarefa()
     {
         var texto = TxtNovaTarefa.Text.Trim();
-        if (string.IsNullOrEmpty(texto)) return;
+        if (string.IsNullOrEmpty(texto)) return false;
 
         if (_dataAgendadaPendente.HasValue)
-        {
             Tarefas.AdicionarAgendada(texto, _dataAgendadaPendente.Value);
-            _dataAgendadaPendente = null;
-            BtnAgendar.ClearValue(System.Windows.Controls.Control.ForegroundProperty);
-            BtnAgendar.ToolTip = "Agendar para outro dia";
-        }
         else
-        {
             Tarefas.AdicionarFixa(texto);
-        }
 
-        TxtNovaTarefa.Clear();
+        FecharPainelInput();
         CarregarLista();
         CarregarEstatistica();
+        return true;
     }
 
     // ---- Tema ----
@@ -220,5 +307,34 @@ public partial class MainWindow : Window
     {
         ((App)Application.Current).AplicarTema(tema);
         PopupTemas.IsOpen = false;
+    }
+
+    // ---- Tamanho da janela ----
+
+    private void TamanhoPequena_Click(object sender, RoutedEventArgs e) => AplicarTamanho(TamanhoJanela.Pequena);
+    private void TamanhoMedia_Click(object sender, RoutedEventArgs e) => AplicarTamanho(TamanhoJanela.Media);
+    private void TamanhoGrande_Click(object sender, RoutedEventArgs e) => AplicarTamanho(TamanhoJanela.Grande);
+
+    private void AplicarTamanho(TamanhoJanela tamanho)
+    {
+        (Width, Height) = tamanho switch
+        {
+            TamanhoJanela.Media => (300d, 560d),
+            TamanhoJanela.Grande => (340d, 680d),
+            _ => (250d, 460d)
+        };
+
+        var app = (App)Application.Current;
+        app.AplicarTamanhoFonte(tamanho);
+        app.Settings.Tamanho = tamanho;
+        app.Storage.SalvarSettings(app.Settings);
+        PopupTemas.IsOpen = false;
+    }
+
+    // ---- Dashboard semanal ----
+
+    private void Estatistica_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        new DashboardSemanalWindow(Tarefas) { Owner = this }.ShowDialog();
     }
 }
