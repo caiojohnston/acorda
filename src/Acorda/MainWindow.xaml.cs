@@ -21,6 +21,8 @@ public partial class MainWindow : Window
 
     private DateTime? _dataAgendadaPendente;
     private DispatcherTimer? _watchdogAncoragem;
+    private DispatcherTimer? _timerVirada;
+    private DateTime _diaAtual;
     public bool PermitirFechamento { get; set; }
 
     private const int DuracaoAnimacaoMs = 180;
@@ -54,6 +56,13 @@ public partial class MainWindow : Window
                 DesktopPinner.ReforcarFundo(Hwnd);
         };
         _watchdogAncoragem.Start();
+
+        // Virada do dia: relê DateTime.Today (calendário do PC) e recarrega a lista se mudou.
+        // Polling cobre meia-noite, suspensão/retomada e mudança manual de data/hora.
+        _diaAtual = DateTime.Today;
+        _timerVirada = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+        _timerVirada.Tick += (_, _) => VerificarViradaDoDia();
+        _timerVirada.Start();
 
         // Sem o truque de virar filha do WorkerW, esta janela voltou a ser uma janela
         // de topo comum — e "Mostrar Área de Trabalho" minimiza TODAS as janelas de topo,
@@ -191,6 +200,15 @@ public partial class MainWindow : Window
         ListaTarefas.ItemsSource = visiveis
             .Select(t => new TarefaItemVM(t, Tarefas.EstaConcluidaHoje(t)))
             .ToList();
+    }
+
+    private void VerificarViradaDoDia()
+    {
+        var hoje = DateTime.Today;
+        if (hoje == _diaAtual) return;
+        _diaAtual = hoje;
+        CarregarLista();
+        CarregarEstatistica();
     }
 
     private void CarregarEstatistica()
